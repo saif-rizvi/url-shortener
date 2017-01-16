@@ -28,7 +28,7 @@ def shortenURL():
 
 	# Verify valid url formatting, return with 400 code?
 	if not validators.url(longURL):
-		return jsonify(error="Please use valid URL. Remember to include http(s)://",longURL=longURL)
+		return jsonify(error="Please use valid URL. Remember to include http(s)://",longURL=longURL), 400
 
 	# Connect to DB and get cursor
 	cursor = mysql.connect().cursor()
@@ -62,6 +62,8 @@ def _resolveShortURL(shortURL):
 # Redirects user to URL corresponding to given shortURL if it exists
 @app.route('/<shortURL>', methods = ['GET'])
 def redirectShortURL(shortURL):
+	if not validateShortURL(url):  
+		abort(400)
 	data = _resolveShortURL(shortURL)
 	if data is None:
 		return abort(404)
@@ -71,6 +73,8 @@ def redirectShortURL(shortURL):
 # Returns info about requested shortened URL as JSON object
 @app.route('/api/json/<shortURL>', methods = ['GET'])
 def getShortURLInfo(shortURL):
+	if not validateShortURL(url):  
+		abort(400)
 	data = _resolveShortURL(shortURL)
 	if data is None:
 		return abort(404)
@@ -78,7 +82,7 @@ def getShortURLInfo(shortURL):
 		return jsonify(shortURL=data[0], longURL=data[1])
 
 
-shortURLRegEx = re.compile("[a-zA-Z0-9_]{1,6}");
+shortURLRegEx = re.compile("[a-zA-Z0-9]{1,6}");
 def validateShortURL(url):
 	return (len(url) < 7) and (re.match(shortURLRegEx, url))	
 
