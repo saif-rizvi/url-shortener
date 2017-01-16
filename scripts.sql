@@ -1,7 +1,7 @@
 # Author: Saif Rizvi
 # SQL commands and procedures used to set up and interact with database
 
-USE urlstorage;
+USE urlstorage
 
 -- DROP if exists or something? 
 CREATE TABLE urls (
@@ -14,14 +14,16 @@ CREATE TABLE urls (
 DELIMITER //
 DROP PROCEDURE IF EXISTS GetRecordFromLongURL //
 CREATE PROCEDURE GetRecordFromLongURL(inputURL VARCHAR(2083))
-	SELECT (shortURL, longURL) FROM urls WHERE longURL=inputURL;
+	SELECT shortURL, longURL FROM urls WHERE longURL=inputURL;
+	//
 DELIMITER ;
 
 -- Returns record with a matching shortURL
 DELIMITER //
 DROP PROCEDURE IF EXISTS GetRecordFromShortURL //  
 CREATE PROCEDURE GetRecordFromShortURL(inputURL VARCHAR(6))
-	SELECT (shortURL, longURL) FROM urls WHERE shortURL=inputURL;
+	SELECT shortURL, longURL FROM urls WHERE shortURL=inputURL;
+	//
 DELIMITER ;
 
 -- Converts base-10 number into base-62 string
