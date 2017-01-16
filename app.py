@@ -3,8 +3,7 @@
 
 from flask import Flask, request, redirect, abort, jsonify
 from flaskext.mysql import MySQL
-import validators
-
+import validators, re
 
 app = Flask(__name__)
 
@@ -19,16 +18,15 @@ mysql.init_app(app)
 
 # Handles incoming POST requests to shorten new URL
 @app.route('/services/shortener', methods = ['POST'])
-def api_shorten_requests():
-	
+def shortenURL():
 	# Request must have a JSON body
 	if not request.json:
 		abort(400)
-	
+
 	# Grab requested url from body
 	longURL = request.json['longURL']
-	
-	# Verify valid url formatting
+
+	# Verify valid url formatting, return with 400 code?
 	if not validators.url(longURL):
 		return jsonify(error="Please use valid URL. Remember to include http(s)://",longURL=longURL)
 
@@ -49,32 +47,40 @@ def api_shorten_requests():
 	# Return json object with details of new shortened URL
 	return jsonify(shortURL=data[0], longURL=data[1])	
 
-# Make a separate path for API GET requests, returns info
-# @app.route('/api/v1/<shortURL>', )
-
-# Redirects user to URL corresponding to given shortURL if it exists
-@app.route('/<shortURL>', methods = ['GET'])
-def api_get_shortURL(shortURL):
-
+# "Private" method that attempts to retreive a record corresponding to shortURL
+def _resolveShortURL(shortURL):
 	# Ignore weird request Chrome keeps sending
 	if "favicon" in shortURL:
 		pass
-
 	# Query urlDB for shortURL's corresponding longURL
 	cursor = mysql.connect().cursor()
-
 	cursor.callproc('GetRecordFromShortURL', [shortURL])
 	data = cursor.fetchone()
 	cursor.close()
+	return data
 
+# Redirects user to URL corresponding to given shortURL if it exists
+@app.route('/<shortURL>', methods = ['GET'])
+def redirectShortURL(shortURL):
+	data = _resolveShortURL(shortURL)
 	if data is None:
-		return abort(404) # implement custom error response
+		return abort(404)
 	else:
 		return redirect(data[1], 302)
 
-# TODO: Check if url is in base 62 and 6 chars max
+# Returns info about requested shortened URL as JSON object
+@app.route('/api/json/<shortURL>', methods = ['GET'])
+def getShortURLInfo(shortURL):
+	data = _resolveShortURL(shortURL)
+	if data is None:
+		return abort(404)
+	else:
+		return jsonify(shortURL=data[0], longURL=data[1])
+
+
+shortURLRegEx = re.compile("[a-zA-Z0-9_]{1,6}");
 def validateShortURL(url):
-	pass
+	return (len(url) < 7) and (re.match(shortURLRegEx, url))	
 
 if __name__ == '__main__':
 	app.run()
