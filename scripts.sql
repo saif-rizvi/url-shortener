@@ -1,49 +1,60 @@
-# SQL commands and procedures 
+# Author: Saif Rizvi
+# SQL commands and procedures used to set up and interact with database
 
 USE urlstorage;
 
 -- DROP if exists or something? 
 CREATE TABLE urls (
-	urlID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	urlID INT AUTO_INCREMENT PRIMARY KEY,
 	shortURL VARCHAR(6) UNIQUE,
-	longURL VARCHAR(2083) UNIQUE
-)
+	longURL VARCHAR(2083) NOT NULL UNIQUE
+);
 
--- Returns corresponding longURL of given inputURL
+-- Returns record with a matching longURL
 DELIMITER //
-CREATE PROCEDURE GetLongURL(inputURL VARCHAR(6))
-	BEGIN
-	SELECT (longURL) FROM urls WHERE shortURL=inputURL;
-	END //
+DROP PROCEDURE IF EXISTS GetRecordFromLongURL //
+CREATE PROCEDURE GetRecordFromLongURL(inputURL VARCHAR(2083))
+	SELECT (shortURL, longURL) FROM urls WHERE longURL=inputURL;
 DELIMITER ;
 
+-- Returns record with a matching shortURL
 DELIMITER //
-CREATE PROCEDURE GetMaxID()
-	BEGIN
-	SELECT `AUTO_INCREMENT`
-		FROM  INFORMATION_SCHEMA.TABLES
-		WHERE TABLE_SCHEMA = 'urlstorage'
-		AND   TABLE_NAME   = 'urls';
-	END //
+DROP PROCEDURE IF EXISTS GetRecordFromShortURL //  
+CREATE PROCEDURE GetRecordFromShortURL(inputURL VARCHAR(6))
+	SELECT (shortURL, longURL) FROM urls WHERE shortURL=inputURL;
 DELIMITER ;
 
--- TODO: Write Base-10 to Base-62 Converter
-
+-- Converts base-10 number into base-62 string
 DELIMITER //
+DROP FUNCTION IF EXISTS base10ToBase62 // 
+CREATE FUNCTION base10ToBase62(num INT(11)) RETURNS VARCHAR(6) DETERMINISTIC 
+BEGIN
+	DECLARE output VARCHAR(6) DEFAULT "";
+	DECLARE base62 CHAR(62) DEFAULT "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	DECLARE remainder INT DEFAULT 0;
+	
+	IF num = 0 THEN SET output = "0";
+	END IF;
+	
+	WHILE num > 0 DO
+    SET remainder = num MOD 62;
+    SET num = num DIV 62;
+    SET output = CONCAT(output, SUBSTR(base62, remainder+1, 1));
+    END WHILE;
+	RETURN (output);
+END // 
+DELIMITER ;
+
+-- Only call this if you already know the inputURL isn't already in DB
+DELIMITER //
+DROP PROCEDURE IF EXISTS AddNewURL;
 CREATE PROCEDURE AddNewURL(inputURL VARCHAR(2083))
 	BEGIN
-
-	-- Check if URL already in DB. Might be able to avoid this using INSERT IGNORE
-	SELECT * FROM urls WHERE longURL=inputURL;
-
-	-- This might not work if two requests are sent at the same time
-	-- nextID = GetMaxID()
-	-- nextShortURL = Base10ToBase62(nextID)
-	-- INSERT INTO urls (shortURL, urlID, longURL) 
-	-- VALUES (nextShortURL, nextID, inputURL)
-	
-	-- Might be a way to automatically call a procedure to fill shortURL 
-	-- column after row is added, calculated based on urlID, which is auto-incremented
-
+	START TRANSACTION;
+	INSERT INTO urls (longURL) VALUES (inputURL);
+	UPDATE urls
+		SET shortURL = base10ToBase62(urlID)
+		WHERE longURL = inputURL;
+	COMMIT;
 	END //
 DELIMITER ;
